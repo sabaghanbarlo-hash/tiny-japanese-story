@@ -1,0 +1,17 @@
+{
+  "title": "First day at school",
+  "background": "classroom",
+  "characters": ["yuki", "ken"],
+  "timeline": [
+    { "t": 0.0, "action": "enter", "who": "yuki", "from": "door_left", "to": "desk_front" },
+    { "t": 2.0, "action": "expression", "who": "yuki", "value": "confused" },
+    { "t": 3.5, "action": "enter", "who": "ken", "from": "door_right", "to": "center" },
+    { "t": 5.0, "action": "face", "who": "yuki", "target": "ken" },
+    { "t": 5.2, "action": "expression", "who": "yuki", "value": "surprised" },
+    { "t": 6.0, "action": "say", "who": "ken", "ja": "はじめまして。", "romaji": "Hajimemashite.", "en": "Nice to meet you." },
+    { "t": 8.0, "action": "say", "who": "yuki", "ja": "はじめまして。よろしくお願いします。", "romaji": "Hajimemashite. Yoroshiku onegaishimasu.", "en": "Nice to meet you. Please take care of me." },
+    { "t": 11.0, "action": "cut_to", "background": "hallway" },
+    { "t": 11.5, "action": "walk_to", "who": "yuki", "to": "center" },
+    { "t": 11.5, "action": "walk_to", "who": "ken", "to": "right" }
+  ]
+}
