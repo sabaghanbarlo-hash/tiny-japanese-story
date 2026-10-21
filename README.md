@@ -1,35 +1,38 @@
-# Tiny Japanese Story (new system)
+# Tiny Japanese Story
 
-A brand-new, separate project. The existing `tiny-japanese-youtube` and `tiny-japanese-video` repos are NOT touched; assets are only copied from them into `assets/`.
+A separate copy of the Tiny Japanese YouTube generator where the characters **act out the story**: they walk into a room, look confused, notice each other, wave, change places and backgrounds. The original project (`tiny-japanese-youtube`) is not touched by this one.
 
-## Goal
-Story-style lesson videos where characters act out the scene: enter a room, look confused, meet another character, talk, then move to a new place with a new background.
+Paste a script in the studio page, press the button, get a video (story + vocabulary + grammar + quiz, 1920x1080).
 
-## Approach: 2D puppet rig
-- Each character = layered images (body, head, eyes, mouth) plus pose and expression variants.
-- Each scene = background + a timeline of actions, defined in a JSON file.
-- A renderer draws frames from the timeline (positions, poses, expressions, speech) and encodes the video with ffmpeg.
-- Subtitles (Japanese / romaji / English) come from the dialogue lines in the same scene file.
+## Make a video
+1. Open the studio page (GitHub Pages of this repo: `https://sabaghanbarlo-hash.github.io/tiny-japanese-story/`).
+2. Paste a script, press **Make video**. One-time setup: a fine-grained GitHub token limited to this repo (Contents + Actions read/write), saved only in your browser.
+3. The render job (GitHub Actions) takes about 10-20 minutes and publishes the video on the page.
 
-## Layout
+Locally: `pip install -r requirements.txt` (plus ffmpeg and a Japanese font), then
+`python lesson.py lessons/01-first-day-at-school.txt -o output`. Quick checks: `--preview folder/` saves still frames, `--dummy-audio` skips the voices.
+
+## Script format
+Same as the original (`title:` `episode:` `scene:` header, then `[story]` `[vocab]` `[grammar]` `[quiz]`), plus **stage directions** inside `[story]`:
+
 ```
-assets/
-  characters/<name>/   body.png, head_*.png, eyes_*.png, mouth_*.png
-  backgrounds/         classroom.png, hallway.png, ...
-scenes/                story JSON files (see scenes/example_classroom.json)
-src/                   renderer (to be built)
-out/                   rendered videos
+@scene classroom
+> Mika enters left            # enters left | right, optionally "to center"
+& Alex enters right           # "&" = at the same time as the line above
+> Alex looks confused         # confused surprised happy sad shy neutral
+Alex: ここが きょうしつ？ | Is this the classroom?
+> Mika walks to next to Alex  # left center right home | next to Alex | 40 (percent)
+> Mika waves
+> Alex jumps
+> Alex faces Mika            # or: faces left / right
+> wait 1.5
+> both exit right
+@scene hallway                # background change; between directions it switches mid-walk
 ```
+Directions run in order, then the next spoken line plays. When two characters meet they turn toward each other, and the one already there gets a "!". A script with no directions plays like the original (both characters standing in place). Scenes: cafe, station, sakura, restaurant, store, bookstore, classroom, home, airport, street, park, beach, hospital.
 
-## Action vocabulary (scene timeline)
-- `enter` / `exit` (from left/right/door), `walk_to`, `face`
-- `expression` (neutral, confused, surprised, happy)
-- `say` (Japanese, romaji, English, optional audio)
-- `wait`
-- `cut_to` (change background / setting)
-
-## Next steps
-1. Copy existing character and background art into `assets/` (read-only from the old repos).
-2. Build the renderer for one scene and test it.
-3. Add scene transitions, then the vocabulary / grammar / quiz segments.
-4. Connect to the existing upload flow only after the output looks right.
+## How it is built
+- `lesson.py` - copy of the original generator (script parsing, voices, vocab/grammar/quiz slides, encoding) wired to the acting layer.
+- `acting.py` - stage directions -> keyframes, and the rigged Mika/Alex drawing (walk cycle, waving arm, expressions).
+- `.github/workflows/render.yml`, `docs/index.html` - the render job and the studio page.
+- YouTube upload is not wired up here yet.
