@@ -28,7 +28,7 @@ Same as the original (`title:` `episode:` `scene:` header, then `[story]` `[voca
 ```
 Characters walk, run, react, hold and eat things (cotton candy, ice cream, balloon, ticket...), give things to each other, ride the carousel and Ferris wheel, and move between places. Places: amusement park, shrine, zoo, aquarium, cafe, classroom, station, store, home, bookstore, restaurant, airport, street, park, beach, hospital, sakura - several have named spots to walk to.
 
-**You do not have to write directions yourself**: tell Claude the story idea and it writes the directed script. The complete vocabulary is in [DIRECTING.md](DIRECTING.md). A script with no directions plays like the original (both characters standing in place).
+**You do not have to write directions yourself**: copy the director prompt from the studio page (or `DIRECTOR_PROMPT.md`) into any Claude chat with your story idea and it writes the directed script. The complete vocabulary is in [DIRECTING.md](DIRECTING.md). A script with no directions plays like the original (both characters standing in place).
 
 ## How it is built
 - `lesson.py` - copy of the original generator (script parsing, voices, vocab/grammar/quiz slides, encoding) wired to the acting layer.
