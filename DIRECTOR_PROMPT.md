@@ -50,7 +50,14 @@ cotton candy, ice cream, balloon, ticket, drink, bag, book, popcorn, plush (priz
 | store | register, shelf, door |
 | home, bookstore, restaurant, airport, street (night), park, beach, hospital, sakura | no named spots yet (use left / center / right / percent) |
 
-# Example of a finished story section (amusement park)
+# Exact format of the last three sections (the studio is strict about this)
+- Every line is ONE line. No numbering, no bullets, no bold, no blank lines inside a section.
+- `[vocab]`: `vocab: word | meaning | romaji` then, on the next line, `example: Japanese | English | romaji`.
+- `[grammar]`: `grammar: pattern | short explanation` then two lines `example: Japanese | English | romaji`.
+- `[quiz]`: `quiz: question | option A | option B | option C | A/B/C | short explanation` (exactly three options, then the answer letter).
+- Section names are exactly `[story]`, `[vocab]`, `[grammar]`, `[quiz]` on their own lines.
+
+# Example of a finished script (amusement park)
 ```
 title: A Day at the Amusement Park
 episode: 2
@@ -90,7 +97,29 @@ Mika: たかい！ すごい！ | So high! Amazing! | Takai! Sugoi!
 Alex: きょうは とても たのしかったね。 | Today was really fun. | Kyou wa totemo tanoshikatta ne.
 > Mika nods
 Mika: また こようね！ | Let's come again! | Mata koyou ne!
+
+[vocab]
+vocab: わたあめ | cotton candy | wataame
+example: わたあめが すきです。 | I like cotton candy. | Wataame ga suki desu.
+vocab: のりもの | ride / vehicle | norimono
+example: ゆうえんちの のりものは たのしいです。 | The rides at the amusement park are fun. | Yuuenchi no norimono wa tanoshii desu.
+vocab: たかい | high / tall | takai
+example: かんらんしゃは とても たかいです。 | The Ferris wheel is very high. | Kanransha wa totemo takai desu.
+vocab: たのしい | fun | tanoshii
+example: きょうは たのしかったです。 | Today was fun. | Kyou wa tanoshikatta desu.
+
+[grammar]
+grammar: Noun + を ください | Use this to ask for something politely
+example: わたあめを ひとつ ください。 | One cotton candy, please. | Wataame o hitotsu kudasai.
+example: みずを ください。 | Water, please. | Mizu o kudasai.
+grammar: Ride + に のる | Use this to say you ride something
+example: かんらんしゃに のります。 | I ride the Ferris wheel. | Kanransha ni norimasu.
+example: でんしゃに のります。 | I ride the train. | Densha ni norimasu.
+
+[quiz]
+quiz: How do you ask for cotton candy politely? | わたあめを ください | わたあめに ください | わたあめが ください | A | を marks the thing you ask for.
+quiz: What does のりもの mean? | ride / vehicle | cotton candy | ticket | A | Rides like the carousel are のりもの.
+quiz: Which one means "fun"? | たかい | たのしい | あまい | B | たのしい means fun.
 ```
-(The finished script also has the [vocab], [grammar] and [quiz] sections after the story.)
 
 Now wait for my story idea. If it is missing a place, a lesson goal or a length, make a sensible choice instead of asking questions.
