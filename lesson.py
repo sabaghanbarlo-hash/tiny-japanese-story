@@ -266,6 +266,7 @@ def make_scene(scene):
         d.rectangle((900, 330, 1020, 370), fill=(236, 86, 96)); d.rectangle((940, 290, 980, 410), fill=(236, 86, 96))
         for x in (420, 1300):
             d.rounded_rectangle((x, 520, x + 200, 760), radius=12, fill=(250, 250, 252), outline=(160, 200, 206), width=7)
+    A.draw_scene(scene, d, rng)
     d.rectangle((0, FLOOR_Y, W, H), fill=sc["floor"])
     for y in range(FLOOR_Y + 70, H, 74):
         d.line([(0, y), (W, y)], fill=tuple(int(v * 0.93) for v in sc["floor"]), width=3)

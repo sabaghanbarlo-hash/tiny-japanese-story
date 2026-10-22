@@ -13,26 +13,25 @@ Locally: `pip install -r requirements.txt` (plus ffmpeg and a Japanese font), th
 `python lesson.py lessons/01-first-day-at-school.txt -o output`. Quick checks: `--preview folder/` saves still frames, `--dummy-audio` skips the voices.
 
 ## Script format
-Same as the original (`title:` `episode:` `scene:` header, then `[story]` `[vocab]` `[grammar]` `[quiz]`), plus **stage directions** inside `[story]`:
+Same as the original (`title:` `episode:` `scene:` header, then `[story]` `[vocab]` `[grammar]` `[quiz]`), plus **stage directions** inside `[story]` (lines starting with `>`; `&` = at the same time as the line above):
 
 ```
-@scene classroom
-> Mika enters left            # enters left | right, optionally "to center"
-& Alex enters right           # "&" = at the same time as the line above
-> Alex looks confused         # confused surprised happy sad shy neutral
-Alex: ここが きょうしつ？ | Is this the classroom?
-> Mika walks to next to Alex  # left center right home | next to Alex | 40 (percent)
+@scene amusement park
+> Mika enters left
+& Alex enters left
+> Alex looks surprised
+> both walk to the cotton candy stall
+> Alex buys cotton candy
+> both eat
+> both ride the carousel
 > Mika waves
-> Alex jumps
-> Alex faces Mika            # or: faces left / right
-> wait 1.5
-> both exit right
-@scene hallway                # background change; between directions it switches mid-walk
 ```
-Directions run in order, then the next spoken line plays. When two characters meet they turn toward each other, and the one already there gets a "!". A script with no directions plays like the original (both characters standing in place). Scenes: cafe, station, sakura, restaurant, store, bookstore, classroom, home, airport, street, park, beach, hospital.
+Characters walk, run, react, hold and eat things (cotton candy, ice cream, balloon, ticket...), give things to each other, ride the carousel and Ferris wheel, and move between places. Places: amusement park, shrine, zoo, aquarium, cafe, classroom, station, store, home, bookstore, restaurant, airport, street, park, beach, hospital, sakura - several have named spots to walk to.
+
+**You do not have to write directions yourself**: tell Claude the story idea and it writes the directed script. The complete vocabulary is in [DIRECTING.md](DIRECTING.md). A script with no directions plays like the original (both characters standing in place).
 
 ## How it is built
 - `lesson.py` - copy of the original generator (script parsing, voices, vocab/grammar/quiz slides, encoding) wired to the acting layer.
-- `acting.py` - stage directions -> keyframes, and the rigged Mika/Alex drawing (walk cycle, waving arm, expressions).
+- `acting.py` - stage directions -> keyframes, the rigged Mika/Alex drawing (walk cycle, waving arm, expressions, held items), rides, moving scenery and the new places.
 - `.github/workflows/render.yml`, `docs/index.html` - the render job and the studio page.
 - YouTube upload is not wired up here yet.

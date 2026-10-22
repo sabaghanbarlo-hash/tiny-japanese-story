@@ -48,11 +48,12 @@ textarea.short{min-height:300px}
 <textarea id="script" spellcheck="false"></textarea>
 <p class="hint" id="hint"></p>
 <details style="margin-top:10px"><summary>Stage directions guide</summary>
-<p class="hint">Put these lines inside [story], before the spoken line they lead into. They run in order, then the line plays.</p>
-<p class="hint"><code>&gt; Mika enters left</code> · <code>&gt; Alex enters right</code> · <code>&gt; Mika walks to center</code> (left, center, right, home, <code>next to Alex</code>, or a number like 40)<br>
-<code>&gt; Mika looks confused</code> (confused, surprised, happy, sad, shy, neutral) · <code>&gt; Alex faces Mika</code> · <code>&gt; Mika waves</code> · <code>&gt; Alex jumps</code> · <code>&gt; wait 1.5</code> · <code>&gt; both exit right</code><br>
-<code>&amp; Alex enters right</code> starts at the same moment as the line above it. <code>@scene classroom</code> changes the background (put it between directions to switch mid-walk).<br>
-When two characters meet, they automatically turn toward each other and the one already there gets a “!”. Without any directions, both characters just stand in place like in the original Tiny Japanese.</p></details>
+<p class="hint">Easiest: tell Claude the story idea and paste the directed script it writes. Direction lines go inside [story] before the spoken line they lead into; they run in order, then the line plays. <code>&amp;</code> at the start means “at the same time as the line above”.</p>
+<p class="hint"><code>&gt; Mika enters left</code> · <code>&gt; Alex walks to the cotton candy stall</code> · <code>&gt; both run to center</code> · <code>&gt; both exit right</code><br>
+<code>&gt; Mika looks confused</code> (confused, surprised, happy, sad, shy, neutral) · <code>&gt; Alex faces Mika</code> · <code>&gt; Mika waves / jumps / laughs / nods / cheers</code><br>
+<code>&gt; Alex buys cotton candy</code> · <code>&gt; both eat</code> · <code>&gt; Mika gives the ticket to Alex</code> · <code>&gt; both drop</code> (items: cotton candy, ice cream, balloon, ticket, drink, bag, book, popcorn, plush)<br>
+<code>&gt; both ride the carousel</code> · <code>&gt; both ride the ferris wheel</code> (amusement park) · <code>&gt; wait 1.5</code> · <code>@scene zoo</code> changes the place.<br>
+Places: amusement park, shrine, zoo, aquarium, cafe, classroom, station, store, home, bookstore, restaurant, airport, street, park, beach, hospital, sakura. Full list with the spots you can walk to: DIRECTING.md in the repo. Without any directions the characters just stand in place like the original Tiny Japanese.</p></details>
 <button id="run" style="margin-top:14px">Make video</button>
 </div>
 
@@ -76,66 +77,73 @@ const $=id=>document.getElementById(id);
 const MODES={
  video:{wf:"render.yml",dir:"lessons",input:"lesson",key:"tjs_script",btn:"Make video",
   sub:"Paste a script, press the button: an acted-out story (characters walk, react, change places) + vocab + grammar + quiz.",
-  hint:"Header (title: episode: scene:), then [story] [vocab] [grammar] [quiz]. Speakers: Mika, Alex. Romaji is automatic. In [story], lines starting with > are stage directions (see the guide below).",wait:"A 5–6 minute video takes about 10–20 minutes.",vert:false},
+  hint:"Header (title: episode: scene:), then [story] [vocab] [grammar] [quiz]. Speakers: Mika, Alex. Romaji is automatic. In [story], lines starting with > are stage directions (see the guide below, or just ask Claude to direct your story).",wait:"A 5–6 minute video takes about 10–20 minutes.",vert:false},
  short:{wf:"short.yml",dir:"shorts",input:"short",key:"tjs_short",btn:"Make Short",
   sub:"Paste a short script, get a vertical ~45 second Short: mini story + 2 key words + 1 quiz question.",
   hint:"Same format, but keep it tiny: 4–6 story lines, 1–2 [vocab] words, one [quiz] question. [grammar] is ignored. Romaji is automatic.",wait:"A Short takes about 4–8 minutes.",vert:true}};
 let MODE="video";
 function get0(k){try{return localStorage.getItem(k)||""}catch(e){return ""}}
-const SAMPLE_VIDEO=`title: Alex's First Day at School
-episode: 1
-scene: classroom
+const SAMPLE_VIDEO=`title: A Day at the Amusement Park
+episode: 2
+scene: amusement park
 
 [story]
-@scene home
-> Mika enters left
-& Alex enters right
-> Mika waves
-Mika: おはよう、アレックス！ | Good morning, Alex! | Ohayou, Arekkusu!
-Alex: おはよう、ミカ。きょうは がっこうの はじめての ひだね。 | Morning, Mika. Today is my first day at school. | Ohayou, Mika. Kyou wa gakkou no hajimete no hi ne.
-Mika: いっしょに いこう！ | Let's go together! | Issho ni ikou!
-> both exit right
-@scene classroom
+@scene amusement park
 > Mika enters left
 & Alex enters left
-> Alex looks confused
-Alex: ここが きょうしつ？ | Is this the classroom? | Koko ga kyoushitsu?
-> Mika walks to next to Alex
-Mika: そう。わたしの となりに すわって。 | Yes. Sit next to me. | Sou. Watashi no tonari ni suwatte.
+> Alex looks surprised
+Alex: わあ、ゆうえんちだ！ | Wow, an amusement park! | Waa, yuuenchi da!
+> Mika cheers
+Mika: ねえ、あれを みて！ わたあめだよ！ | Hey, look at that! It's cotton candy! | Nee, are o mite! Wataame da yo!
+> both walk to the cotton candy stall
+Alex: すみません、わたあめを ふたつ ください。 | Excuse me, two cotton candies, please. | Sumimasen, wataame o futatsu kudasai.
+> Alex buys cotton candy
+& Mika buys cotton candy
+Mika: ありがとうございます！ | Thank you very much! | Arigatou gozaimasu!
+> both eat
+Alex: おいしい！ | Delicious! | Oishii!
+Mika: あまいね！ | It's sweet! | Amai ne!
+> both drop
+> both walk to the ticket booth
+Mika: のりものの きっぷを かおう！ | Let's buy tickets for the rides! | Norimono no kippu o kaou!
+> Mika buys ticket
+& Alex buys ticket
+Alex: これで のれるね！ | Now we can ride! | Kore de noreru ne!
+> both ride the carousel
+Mika: たのしかった！ | That was fun! | Tanoshikatta!
 > Alex looks happy
-Alex: ありがとう。はじめまして、アレックスです。 | Thanks. Nice to meet you, I'm Alex. | Arigatou. Hajimemashite, Arekkusu desu.
+Alex: つぎは かんらんしゃに のろう！ | Next, let's ride the Ferris wheel! | Tsugi wa kanransha ni norou!
+> both ride the ferris wheel
+> both drop
 > Mika waves
-Mika: こちらこそ。ミカです。よろしくね。 | Likewise. I'm Mika. Please be nice to me. | Kochira koso. Mika desu. Yoroshiku ne.
-> Mika walks to home
-& Alex looks neutral
-Alex: ミカは なにが すき？ | Mika, what do you like? | Mika wa nani ga suki?
-> Mika looks happy
-Mika: わたしは にほんごが すきだよ。 | I like Japanese. | Watashi wa nihongo ga suki da yo.
-> Alex jumps
-Alex: ぼくも にほんごが すき！ | I like Japanese too! | Boku mo nihongo ga suki!
+Mika: たかい！ すごい！ | So high! Amazing! | Takai! Sugoi!
+> both walk to home
+Alex: きょうは とても たのしかったね。 | Today was really fun. | Kyou wa totemo tanoshikatta ne.
+> Mika nods
+Mika: また こようね！ | Let's come again! | Mata koyou ne!
 
 [vocab]
-vocab: きょうしつ | classroom | kyoushitsu
-example: きょうしつに せんせいが います。 | The teacher is in the classroom. | Kyoushitsu ni sensei ga imasu.
-vocab: となり | next to / beside | tonari
-example: ミカの となりに すわります。 | I sit next to Mika. | Mika no tonari ni suwarimasu.
-vocab: すき | to like | suki
-example: ねこが すきです。 | I like cats. | Neko ga suki desu.
-vocab: よろしく | please treat me well | yoroshiku
-example: これから よろしく おねがいします。 | I look forward to working with you. | Korekara yoroshiku onegaishimasu.
+vocab: わたあめ | cotton candy | wataame
+example: わたあめが すきです。 | I like cotton candy. | Wataame ga suki desu.
+vocab: のりもの | ride / vehicle | norimono
+example: ゆうえんちの のりものは たのしいです。 | The rides at the amusement park are fun. | Yuuenchi no norimono wa tanoshii desu.
+vocab: たかい | high / tall | takai
+example: かんらんしゃは とても たかいです。 | The Ferris wheel is very high. | Kanransha wa totemo takai desu.
+vocab: たのしい | fun | tanoshii
+example: きょうは たのしかったです。 | Today was fun. | Kyou wa tanoshikatta desu.
 
 [grammar]
-grammar: Noun + が すき | Use this to say you like something
-example: わたしは ねこが すきです。 | I like cats. | Watashi wa neko ga suki desu.
-example: アレックスは コーヒーが すきです。 | Alex likes coffee. | Arekkusu wa koohii ga suki desu.
-grammar: Place + に すわる | Use this to say where you sit
-example: いすに すわります。 | I sit on the chair. | Isu ni suwarimasu.
-example: ミカの となりに すわります。 | I sit next to Mika. | Mika no tonari ni suwarimasu.
+grammar: Noun + を ください | Use this to ask for something politely
+example: わたあめを ひとつ ください。 | One cotton candy, please. | Wataame o hitotsu kudasai.
+example: みずを ください。 | Water, please. | Mizu o kudasai.
+grammar: Ride + に のる | Use this to say you ride something
+example: かんらんしゃに のります。 | I ride the Ferris wheel. | Kanransha ni norimasu.
+example: でんしゃに のります。 | I ride the train. | Densha ni norimasu.
 
 [quiz]
-quiz: How do you say "I like Japanese"? | にほんごが すきです | にほんごを すきです | にほんごに すきです | A | が marks the thing you like.
-quiz: What does となり mean? | classroom | next to | teacher | B | Mika sat となり, next to Alex.
-quiz: Which one means "Nice to meet you"? | ありがとう | はじめまして | おはよう | B | Say はじめまして when you first meet someone.
+quiz: How do you ask for cotton candy politely? | わたあめを ください | わたあめに ください | わたあめが ください | A | を marks the thing you ask for.
+quiz: What does のりもの mean? | ride / vehicle | cotton candy | ticket | A | Rides like the carousel are のりもの.
+quiz: Which one means "fun"? | たかい | たのしい | あまい | B | たのしい means fun.
 `;
 const get=k=>{try{return localStorage.getItem(k)||""}catch(e){return ""}};
 const set=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
