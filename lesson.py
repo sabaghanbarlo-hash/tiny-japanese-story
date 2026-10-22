@@ -464,7 +464,7 @@ def parse_script(path):
     sec, cur = None, None
     pending_scene = None
     pending_dirs = []
-    for n, raw in enumerate(open(path, encoding="utf-8"), 1):
+    for n, raw in enumerate(A.normalize(open(path, encoding="utf-8").read()).split("\n"), 1):
         s = raw.strip()
         if not s or s.startswith("#"):
             continue

@@ -895,3 +895,69 @@ def draw_characters(R, fr, seg, i, tt, who, mouth):
             wob = 6 * math.sin(tt * 9)
             d.text((int(st["x"] + s.width * (0.26 if not st["mirror"] else -0.26)), int(y - 20 + wob)), mk,
                    font=L.font(110), fill=L.CHARS[nm]["accent"], stroke_width=10, stroke_fill=(255, 255, 255), anchor="mm")
+
+
+# ------------------------------------------------------------------ forgiving script reader
+_OPT = re.compile(r"^(?:[-*•]\s*)?\(?([A-Da-d])[).:：]\s*(.+)$")
+
+
+def normalize(text):
+    """Turn common variants of the [vocab] / [grammar] / [quiz] sections (numbered lists, 'Example 1:',
+    'Answer: B', markdown bold...) into the strict one-line format. Line count is preserved so error
+    messages keep their line numbers. Scripts that are already strict come back unchanged."""
+    lines = text.replace("\r", "").split("\n")
+    out = list(lines)
+    sec, i, n = None, 0, len(lines)
+    strict = re.compile(r"^(vocab|grammar|example|quiz)\s*:", re.I)
+    while i < n:
+        s = lines[i].strip()
+        if s.startswith("```"):
+            out[i] = ""; i += 1; continue
+        m = re.match(r"^\[(\w+)\]$", s)
+        if m:
+            sec = m[1].lower(); i += 1; continue
+        if sec not in ("vocab", "grammar", "quiz") or not s or s.startswith("#") or strict.match(s):
+            i += 1; continue
+        s = s.replace("**", "").replace("__", "")
+        if sec in ("vocab", "grammar"):
+            mm = re.match(r"^(?:[-*•]\s*)?(?:example|ex)(?:\s*\d+)?\s*[:：]\s*(.+)$", s, re.I)
+            if mm:
+                out[i] = "example: " + mm[1].strip(); i += 1; continue
+            if sec == "vocab":
+                mm = re.match(r"^(?:\d+[.)]\s*|[-*•]\s*)(.+?)\s*(?:[(（]([^)）]*)[)）]\s*)?(?:[—–]|\s-{1,2}\s|[:：])\s*(.+)$", s)
+                if mm:
+                    out[i] = f"vocab: {mm[1].strip()} | {mm[3].strip()}" + (f" | {mm[2].strip()}" if mm[2] else "")
+            else:
+                mm = re.match(r"^(?:\d+[.)]\s*|[-*•]\s*)(.+?)\s*(?:[—–]|\s-{1,2}\s)\s*(.+)$", s)
+                if mm:
+                    out[i] = f"grammar: {mm[1].strip()} | {mm[2].strip()}"
+            i += 1; continue
+        # quiz block: "1. Question?" then A) B) C) / Answer: B / Explanation: ...
+        mq = re.match(r"^(?:\d+[.)]\s*|[-*•]\s*|Q\d*[.:)]\s*)(.+)$", s, re.I)
+        if not mq or _OPT.match(s):
+            i += 1; continue
+        q, opts, ans, why, j = mq[1].strip(), [], None, "", i + 1
+        while j < n:
+            s2 = lines[j].strip().replace("**", "").replace("__", "")
+            mo, ma = _OPT.match(s2), re.match(r"^(?:answer|correct(?: answer)?)\s*[:：]\s*\(?([A-Da-d])\b.*$", s2, re.I)
+            me = re.match(r"^(?:explanation|why|note)\s*[:：]\s*(.+)$", s2, re.I)
+            if mo and ans is None:
+                opts.append(mo[2].strip())
+            elif ma:
+                ans = ma[1].upper()
+            elif me:
+                why = me[1].strip()
+            elif s2 == "":
+                if ans is not None:
+                    break
+            else:
+                break
+            j += 1
+        if opts and ans is not None:
+            out[i] = "quiz: " + " | ".join([q] + opts + [ans] + ([why] if why else ""))
+            for k in range(i + 1, j):
+                out[k] = ""
+            i = j
+        else:
+            i += 1
+    return "\n".join(out)
