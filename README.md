@@ -1,3 +1,5 @@
+> **Moved:** the story engine, the studio page (Story tab) and automatic YouTube upload now live in [tiny-japanese-youtube](https://github.com/sabaghanbarlo-hash/tiny-japanese-youtube). Use that studio for new story videos. This repository is kept as an archive and no longer uploads to YouTube.
+
 # Tiny Japanese Story
 
 A separate copy of the Tiny Japanese YouTube generator where the characters **act out the story**: they walk into a room, look confused, notice each other, wave, change places and backgrounds. The original project (`tiny-japanese-youtube`) is not touched by this one.
