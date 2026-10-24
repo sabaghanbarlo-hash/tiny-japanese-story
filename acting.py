@@ -8,6 +8,8 @@ Alex art as lesson.py, parameterised (walk cycle, waving arm, expressions, held 
 """
 import functools, math, re
 from PIL import Image, ImageDraw, ImageOps
+import atmos as AT
+import scenery as SC
 
 L = None            # the lesson module, set by bind()
 SPEED = 380.0       # px / second when walking
@@ -19,13 +21,13 @@ EXPRS = {"neutral": "neutral", "confused": "confused", "puzzled": "confused", "n
 
 # ------------------------------------------------------------------ items
 EDIBLE = {"cotton_candy", "ice_cream", "popcorn"}
-ITEMS = {"cotton_candy", "ice_cream", "balloon", "ticket", "drink", "bag", "book", "popcorn", "plush"}
+ITEMS = {"cotton_candy", "ice_cream", "balloon", "ticket", "drink", "bag", "book", "popcorn", "plush", "umbrella"}
 ITEM_ALIASES = {"cotton candy": "cotton_candy", "candyfloss": "cotton_candy", "candy floss": "cotton_candy",
                 "fairy floss": "cotton_candy", "ice cream": "ice_cream", "icecream": "ice_cream", "ice-cream": "ice_cream",
                 "tickets": "ticket", "juice": "drink", "soda": "drink", "tea": "drink", "coffee": "drink", "cup": "drink",
                 "shopping bag": "bag", "gift": "bag", "present": "bag", "teddy": "plush", "teddy bear": "plush",
                 "prize": "plush", "stuffed animal": "plush", "toy": "plush", "bear": "plush", "plushie": "plush",
-                "balloons": "balloon"}
+                "balloons": "balloon", "brolly": "umbrella", "umbrellas": "umbrella", "rain umbrella": "umbrella", "parasol": "umbrella"}
 
 
 def item_name(text):
@@ -73,9 +75,12 @@ def ride_kind(arg):
 def bind(mod):
     global L
     L = mod
-    L.SCENES.update(NEW_SCENES)
-    L.SCENE_KEYWORDS.update(NEW_KEYWORDS)
-    L.SCENE_ALIASES.update(NEW_ALIASES)
+    SC.bind(mod); AT.bind(mod)
+    L.SCENES.update(NEW_SCENES); L.SCENES.update(SC.SCENES)
+    L.SCENE_KEYWORDS.update(NEW_KEYWORDS); L.SCENE_KEYWORDS.update(SC.KEYWORDS)
+    L.SCENE_KEYWORDS["street"] = [k for k in L.SCENE_KEYWORDS["street"] if k not in ("まつり", "祭り", "festival")]
+    L.SCENE_ALIASES.update(NEW_ALIASES); L.SCENE_ALIASES.update(SC.ALIASES)
+    LANDMARKS.update(SC.LANDMARKS); SCENE_DRAW.update(SC.DRAW)
     L.SCENE_ORDER[:] = list(L.SCENES)
 
 
@@ -89,9 +94,9 @@ for _v, _ws in {
     "enter": "enters enter", "walk": "walks walk goes go moves move steps step heads", "run": "runs run dashes dash hurries hurry rushes rush",
     "exit": "exits exit leaves leave", "look": "looks look feels feel seems seem is gets_feeling",
     "face": "faces face turns turn", "wave": "waves wave", "hop": "jumps jump hops hop",
-    "hold": "holds hold gets get takes take grabs grab picks pick has have carries carry",
+    "hold": "holds hold gets get takes take grabs grab picks pick has have carries carry opens open raises raise",
     "buy": "buys buy", "eat": "eats eat licks lick nibbles nibble", "drink": "drinks drink sips sip",
-    "drop": "drops drop finishes finish puts put throws throw", "give": "gives give hands hand passes pass shares share",
+    "drop": "drops drop finishes finish puts put throws throw closes close folds fold", "give": "gives give hands hand passes pass shares share",
     "ride": "rides ride", "laugh": "laughs laugh giggles giggle", "nod": "nods nod", "cheer": "cheers cheer",
 }.items():
     for _w in _ws.split():
@@ -164,6 +169,11 @@ class Stage:
         mk = lambda: {nm: [] for nm in L.CHARS}
         self.moves, self.vis, self.expr, self.face = mk(), mk(), mk(), mk()
         self.wave, self.hop, self.item, self.eat, self.rides = mk(), mk(), mk(), mk(), mk()
+        self.umb = mk()                              # umbrella in hand (separate from the item slot)
+        self.weather, self.tod = None, None          # None | rain | storm | snow  /  None | morning | day | sunset | night
+        self.explicit = dict(weather=False, tod=False, umb=False)
+        self.has_rain, self.title = False, ""
+        self.visits, self._scene_seen, self._w_mark = {}, None, None
         self.pops = []                               # (t0, t1, name, text)
         self.start_vis = {nm: True for nm in L.CHARS}
         self.start_x = dict(self.home)
@@ -185,6 +195,73 @@ class Stage:
 
     def _off(self, nm, side):
         return -L.SPRITE_W if side == "left" else self.W + L.SPRITE_W
+
+    def setup(self, meta, lines):
+        '''Weather / time of day / umbrella bookkeeping that needs the whole script.'''
+        self.title = meta.get("title", "")
+        try:
+            if meta.get("weather"):
+                self.weather = AT.parse_weather(meta["weather"]); self.explicit["weather"] = True
+            if meta.get("time"):
+                self.tod = AT.parse_tod(meta["time"]); self.explicit["tod"] = True
+        except ValueError as e:
+            L.die(f"header: {e}")
+        for ln in lines:
+            for item in (ln.get("dirs") or []) + (ln.get("after") or []):
+                if item[0] == "weather":
+                    self.explicit["weather"] = True
+                elif item[0] == "time":
+                    self.explicit["tod"] = True
+                elif item[0] == "dir" and re.search(r"umbrella|brolly", item[1], re.I):
+                    self.explicit["umb"] = True
+        w = self.weather
+        self.has_rain = bool(w)
+        for ln in lines:
+            for item in ln.get("dirs") or []:
+                if item[0] == "weather":
+                    w = item[1]; self.has_rain = self.has_rain or bool(w)
+            if not self.explicit["weather"]:
+                w = AT.detect_weather(ln, w); self.has_rain = self.has_rain or bool(w)
+            for item in ln.get("after") or []:
+                if item[0] == "weather":
+                    w = item[1]; self.has_rain = self.has_rain or bool(w)
+        self._w_mark = self.weather
+
+    def set_atmos(self, kind, val):
+        if kind == "weather":
+            self.weather = val
+        else:
+            self.tod = val
+
+    def auto_stop(self, ln):
+        '''Just before a line is spoken (after its directions): "the rain stopped" stops the rain.'''
+        if not self.explicit["weather"]:
+            w = AT.detect_weather(ln, self.weather)
+            if w is None:
+                self.weather = None
+
+    def auto_line(self, ln, t):
+        '''At the start of a spoken line's directions: rain starts, the time of day moves on, an umbrella appears.'''
+        if not self.explicit["weather"]:
+            w = AT.detect_weather(ln, self.weather)
+            if w is not None:
+                self.weather = w
+        if not self.explicit["tod"]:
+            self.tod = AT.detect_tod(ln) or self.tod
+        if not self.explicit["umb"] and self.has_rain and AT.offers_umbrella(ln):
+            nm = ln["speaker"]
+            if not self._last(self.umb[nm], t, False):
+                self.umb[nm].append((t, True))
+
+    def look(self, scene, bump=True, settle=False):
+        '''Weather, time of day and background variant for the segment that is about to be marked.'''
+        if bump and scene != self._scene_seen:
+            self.visits[scene] = self.visits.get(scene, 0) + 1
+            self._scene_seen = scene
+        kw = dict(weather=self.weather, prev_weather=self.weather if settle else self._w_mark, tod=self.tod,
+                  variant=SC.variant_of(self.title, scene, self.visits.get(scene, 1)))
+        self._w_mark = self.weather
+        return kw
 
     # -- queries
     def x_at(self, nm, t):
@@ -229,7 +306,7 @@ class Stage:
                     wave=any(a <= t < b for a, b in self.wave[nm]), hop=hop, ride=ride,
                     pop=next((txt for a, b, n, txt in self.pops if n == nm and a <= t < b), None),
                     expr=self._last(self.expr[nm], t, "neutral"), face=face, mirror=(face != self.dflt_face[nm]),
-                    item=item, bite=bite, eating=any(a <= t < b for a, b in self.eat[nm]))
+                    item=item, bite=bite, eating=any(a <= t < b for a, b in self.eat[nm]), umb=self._last(self.umb[nm], t, False))
 
     # -- compile directives into keyframes
     def _target(self, nm, arg, t):
@@ -332,6 +409,8 @@ class Stage:
                 self.hop[nm].append((t, t + 0.4, 40)); self.hop[nm].append((t + 0.45, t + 0.85, 40)); dur = max(dur, 1.3)
             elif verb == "nod":
                 self.hop[nm].append((t, t + 0.35, 20)); self.hop[nm].append((t + 0.4, t + 0.75, 20)); dur = max(dur, 0.9)
+            elif verb in ("hold", "buy") and arg == "umbrella":
+                self.umb[nm].append((t + 0.3, True)); dur = max(dur, 0.9)
             elif verb in ("hold", "buy"):
                 self.item[nm].append((t + 0.3, arg, 0))
                 if verb == "buy":
@@ -350,9 +429,20 @@ class Stage:
             elif verb == "drink":
                 self.eat[nm].append((t, t + 1.8)); self.expr[nm].append((t, "happy")); dur = max(dur, 1.8)
             elif verb == "drop":
-                self.item[nm].append((t, None, 0)); dur = max(dur, 0.5)
+                if re.search(r"umbrella|brolly", arg, re.I):
+                    self.umb[nm].append((t, False))
+                else:
+                    self.item[nm].append((t, None, 0))
+                dur = max(dur, 0.5)
             elif verb == "give":
                 ip, recv = arg.split("|")
+                if ip == "umbrella":
+                    self.umb[nm].append((t + 0.45, False)); self.umb[recv].append((t + 0.45, True))
+                    if recv != nm:
+                        self.face[nm].append((t, 1 if self.x_at(recv, t) > self.x_at(nm, t) else -1))
+                        self.face[recv].append((t, 1 if self.x_at(nm, t) > self.x_at(recv, t) else -1))
+                    dur = max(dur, 1.0)
+                    continue
                 it, bite = self.item_at(nm, t)
                 if ip:
                     it = ip
@@ -407,7 +497,7 @@ def story_line(tr, stage, mark, ln, prev):
                     t1 = stage.direct(group, t0)
                 except ValueError as e:
                     L.die(f"stage direction: {e}")
-                mark("act", t0, scene=cur_scene, prev_scene=prev_box[0])
+                mark("act", t0, scene=cur_scene, prev_scene=prev_box[0], **stage.look(cur_scene))
                 prev_box[0] = cur_scene
                 tr.gap(max(0.05, t1 - t0))
                 group = []
@@ -416,20 +506,25 @@ def story_line(tr, stage, mark, ln, prev):
                 flush(cur)
                 cur = it[1]
                 group = []
+            elif it[0] in ("weather", "time"):
+                flush(cur)
+                stage.set_atmos(it[0], it[1])
             else:
                 group.append((it[1], it[2]))
         flush(cur)
         return cur
 
+    stage.auto_line(ln, tr.t)
     cur = prev
     dirs = ln.get("dirs") or []
     if dirs:
         cur = run(dirs, prev)
     stage.scene = ln["scene"]
+    stage.auto_stop(ln)
     a, b = tr.say(ln["jp"], ln["speaker"])
     ln.update(start=a, end=b)
     stage.line(ln["speaker"], a, b)
-    mark("story", a - 0.02, line=ln, scene=ln["scene"], prev_scene=prev_box[0])
+    mark("story", a - 0.02, line=ln, scene=ln["scene"], prev_scene=prev_box[0], **stage.look(ln["scene"]))
     cur = ln["scene"]
     tr.gap(0.6)
     after = ln.get("after") or []
@@ -488,8 +583,19 @@ def _draw_item(d, ell, P, S, item, bite, swing):
         ell((x - 14, 580, x - 6, 590), (50, 36, 36)); ell((x + 6, 580, x + 14, 590), (50, 36, 36)); ell((x - 8, 592, x + 8, 604), (232, 196, 160))
 
 
+def _draw_umbrella_closed(d, ell, P, S, swing):
+    '''Folded umbrella held in the right hand (sprite coordinates).'''
+    x = 383 - swing
+    wood, col = (112, 84, 66), (74, 98, 160)
+    d.line(P(x, 692, x + 12, 604), fill=wood, width=int(9 * S))
+    d.arc(P(x - 26, 676, x + 4, 716), 20, 200, fill=wood, width=int(9 * S))
+    d.polygon(P(x + 2, 612, x + 34, 612, x + 66, 318, x + 52, 312), fill=col)
+    d.line(P(x + 14, 540, x + 44, 536), fill=(40, 56, 104), width=int(7 * S))
+    d.line(P(x + 52, 312, x + 60, 290), fill=(60, 50, 50), width=int(6 * S))
+
+
 @functools.lru_cache(None)
-def rig(name, mouth, blink, expr, walk, arm, out, item=None, bite=0):
+def rig(name, mouth, blink, expr, walk, arm, out, item=None, bite=0, umb=False):
     """Full-body Mika / Alex with a walk phase (0-3), a waving arm (0-2), an expression and a held item."""
     c, S = L.CHARS[name], 2 * L.CHAR_SCALE
     w, h = int(560 * S), int(960 * S)
@@ -522,6 +628,8 @@ def rig(name, mouth, blink, expr, walk, arm, out, item=None, bite=0):
     ell((148 + swing, 625, 205 + swing, 675), skin)
     if not arm:
         ell((350 - swing, 500, 420 - swing, 650), top)
+        if umb:
+            _draw_umbrella_closed(d, ell, P, S, swing)
         if item:
             _draw_item(d, ell, P, S, item, bite, swing)
         ell((355 - swing, 625, 412 - swing, 675), skin)
@@ -677,11 +785,12 @@ def draw_fish(fr, tt):
             d.line([(jx + t * 14, y), (jx + t * 14 + 6 * math.sin(tt * 3 + t), y + 56)], fill=(226, 180, 244), width=4)
 
 
-def draw_dynamic(fr, scene, tt):
+def draw_dynamic(fr, scene, tt, seg=None):
     if scene == "amusement":
         draw_carousel(fr, tt); draw_ferris(fr, tt)
     elif scene == "aquarium":
         draw_fish(fr, tt)
+    SC.dynamic(fr, scene, tt, seg or {})
 
 
 # ------------------------------------------------------------------ drawing: new places
@@ -828,10 +937,18 @@ def draw_scene(scene, d, rng):
 
 
 # ------------------------------------------------------------------ drawing: per-frame characters
+def atmos_frame(R, name, variant, bg, fg, seg, tt):
+    return AT.frame_bg(R, name, variant, bg, fg, seg, tt)
+
+
+parse_weather, parse_tod = AT.parse_weather, AT.parse_tod
+
+
 def draw_characters(R, fr, seg, i, tt, who, mouth):
-    """Draw moving scenery, riders and both characters for frame i using the stage timeline."""
+    """Draw moving scenery, riders, umbrellas, both characters and falling rain / snow for frame i using the stage timeline."""
     B, stage = R.B, R.B["stage"]
-    draw_dynamic(fr, seg.get("scene"), tt)
+    scene = seg.get("scene")
+    draw_dynamic(fr, scene, tt, seg)
     d = ImageDraw.Draw(fr)
     order = sorted(L.CHARS, key=lambda n: 1 if who == n else 0)
     states = {}
@@ -839,16 +956,19 @@ def draw_characters(R, fr, seg, i, tt, who, mouth):
         st = stage.state(nm, tt)
         if seg["kind"] == "outro":
             st = dict(vis=True, x=stage.home[nm], walking=False, speed=0.0, wave=False, hop=None, ride=None, pop=None, expr="happy",
-                      face=stage.dflt_face[nm], mirror=False, item=None, bite=0, eating=False)
+                      face=stage.dflt_face[nm], mirror=False, item=None, bite=0, eating=False, umb=st.get("umb", False))
         states[nm] = st
+    kind, k = AT.weather_state(seg, tt)
+    wet = bool(kind) and scene in AT.OUTDOOR
+    rainy = wet and k > 0.25
     floor_y = L.FLOOR_Y - 50
     # riders first (they sit on the moving rides)
     for nm in order:
         st = states[nm]
         if not st["vis"] or not st["ride"]:
             continue
-        t0, t1, kind, idx = st["ride"]
-        px, py, out, crop = ride_pos(kind, tt, t0, idx)
+        t0, t1, kind_r, idx = st["ride"]
+        px, py, out, crop = ride_pos(kind_r, tt, t0, idx)
         s = _smooth(min((tt - t0) / 0.7, (t1 - tt) / 0.7))
         X = st["x"] + (px - st["x"]) * s
         Y = floor_y + (py - floor_y) * s
@@ -857,10 +977,9 @@ def draw_characters(R, fr, seg, i, tt, who, mouth):
         sp = rig(nm, 2 if int(tt * 3) % 2 and s > 0.9 else 0, False, "happy", 0, arm, max(0.1, O))
         if s > 0.5:
             sp = sp.crop((0, 0, sp.width, int(sp.height * crop)))
-            Y_bottom = Y
-        else:
-            Y_bottom = Y
-        fr.paste(sp, (int(X - sp.width // 2), int(Y_bottom - sp.height)), sp)
+        fr.paste(sp, (int(X - sp.width // 2), int(Y - sp.height)), sp)
+    # standing characters: work out where each one is, then draw umbrellas behind them
+    lay = []
     for nm in order:
         st = states[nm]
         if st["ride"] and st["vis"]:
@@ -873,7 +992,9 @@ def draw_characters(R, fr, seg, i, tt, who, mouth):
         walk = (0, 1, 0, 3)[int(tt * 7 * sp_k) % 4] if st["walking"] else 0
         arm = (1 + int(tt * 5) % 2) if st["wave"] else 0
         mth = int(mouth) if speaking else (1 if st["eating"] and int(tt * 4) % 2 else 0)
-        s = rig(nm, mth, blink, st["expr"], walk, arm, L.STAGE_OUT, st["item"], min(3, st["bite"]))
+        has_umb = bool(st.get("umb"))
+        is_open = has_umb and rainy
+        s = rig(nm, mth, blink, st["expr"], walk, arm, L.STAGE_OUT, st["item"], min(3, st["bite"]), has_umb and not is_open)
         if st["mirror"]:
             s = ImageOps.mirror(s)
         if st["walking"]:
@@ -885,16 +1006,23 @@ def draw_characters(R, fr, seg, i, tt, who, mouth):
         if st["hop"] is not None:
             u, amp = st["hop"]
             bob += amp * math.sin(math.pi * u)
-        x = int(st["x"] - s.width // 2)
-        y = int(L.FLOOR_Y - 50 - s.height - bob)
+        lay.append(dict(nm=nm, st=st, s=s, x=int(st["x"] - s.width // 2), y=int(L.FLOOR_Y - 50 - s.height - bob),
+                        cx=st["x"], mirror=st["mirror"], open=is_open, speaking=speaking))
+    shelters = AT.draw_umbrellas(fr, lay) if rainy else []
+    markers = []
+    for e in lay:
+        nm, st, s, x, y = e["nm"], e["st"], e["s"], e["x"], e["y"]
         fr.paste(s, (x, y), s)
-        p = R.pills[(nm, int(speaking))]
+        p = R.pills[(nm, int(e["speaking"]))]
         fr.paste(p, (int(st["x"]) - p.width // 2, int(L.FLOOR_Y - 50 - s.height + 36)), p)
         mk = st["pop"] or {"confused": "?", "surprised": "!"}.get(st["expr"])
         if mk:
-            wob = 6 * math.sin(tt * 9)
-            d.text((int(st["x"] + s.width * (0.26 if not st["mirror"] else -0.26)), int(y - 20 + wob)), mk,
-                   font=L.font(110), fill=L.CHARS[nm]["accent"], stroke_width=10, stroke_fill=(255, 255, 255), anchor="mm")
+            markers.append((int(st["x"] + s.width * (0.26 if not st["mirror"] else -0.26)), y, mk, nm))
+    if wet:
+        AT.draw_precip(fr, tt, kind, k, shelters)
+    for mx, y, mk, nm in markers:
+        wob = 6 * math.sin(tt * 9)
+        d.text((mx, int(y - 20 + wob)), mk, font=L.font(110), fill=L.CHARS[nm]["accent"], stroke_width=10, stroke_fill=(255, 255, 255), anchor="mm")
 
 
 # ------------------------------------------------------------------ forgiving script reader

@@ -26,12 +26,18 @@ Same as the original (`title:` `episode:` `scene:` header, then `[story]` `[voca
 > both ride the carousel
 > Mika waves
 ```
-Characters walk, run, react, hold and eat things (cotton candy, ice cream, balloon, ticket...), give things to each other, ride the carousel and Ferris wheel, and move between places. Places: amusement park, shrine, zoo, aquarium, cafe, classroom, station, store, home, bookstore, restaurant, airport, street, park, beach, hospital, sakura - several have named spots to walk to.
+Characters walk, run, react, hold and eat things (cotton candy, ice cream, balloon, ticket, umbrella...), give things to each other, ride the carousel and Ferris wheel, and move between places. Places: amusement park, shrine, zoo, aquarium, cafe, classroom, station, store, home, bookstore, restaurant, airport, street, park, beach, hospital, sakura, town, mountain, river, train, bedroom, kitchen, schoolyard, festival, bus stop - many have named spots to walk to, and every place comes in three looks (normal, warm, cool) so the backgrounds do not repeat.
+
+**Weather and time of day:** rain, storm and snow really fall on outdoor places, with ripples on the ground and an umbrella that keeps its owners dry; morning, sunset and night change the light. They start by themselves when the story says so ("It's raining!", "I have an umbrella!", "The rain stopped!"), or you set them with `@weather rain`, `@time night`, `> Mika opens the umbrella`.
 
 **You do not have to write directions yourself**: copy the director prompt from the studio page (or `DIRECTOR_PROMPT.md`) into any Claude chat with your story idea and it writes the directed script. The complete vocabulary is in [DIRECTING.md](DIRECTING.md). A script with no directions plays like the original (both characters standing in place).
 
 ## How it is built
 - `lesson.py` - copy of the original generator (script parsing, voices, vocab/grammar/quiz slides, encoding) wired to the acting layer.
-- `acting.py` - stage directions -> keyframes, the rigged Mika/Alex drawing (walk cycle, waving arm, expressions, held items), rides, moving scenery and the new places.
+- `acting.py` - stage directions -> keyframes, the rigged Mika/Alex drawing (walk cycle, waving arm, expressions, held items), rides and moving scenery.
+- `atmos.py` - weather (rain, storm, snow), time-of-day colour grading, umbrellas, and reading the story text to start/stop them.
+- `scenery.py` - the newer places (town, mountain, river, train, bedroom, kitchen, schoolyard, festival, bus stop), their animations and the three looks per place.
 - `.github/workflows/render.yml`, `docs/index.html` - the render job and the studio page.
-- YouTube upload is not wired up here yet.
+
+## Automatic YouTube upload
+When a render finishes, the video is published on the studio page. The `tiny-japanese-youtube` repository has a small job (`Upload story videos`) that checks this repository for new videos every 10 minutes and uploads each one to the @tinyjapanese channel with the title, description and chapters from `<name>.description.txt` and the cover image. The YouTube link is saved there as `story-uploads/<name>.youtube.txt`, and the studio page shows it as soon as it exists. Nothing needs to be pressed. It uses the YouTube login already stored in that repository (privacy is `private` unless the repository variable `YT_PRIVACY` says otherwise). Details are in that repository's README.

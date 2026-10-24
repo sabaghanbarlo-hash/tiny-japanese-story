@@ -193,9 +193,9 @@ def shelves(d, rng, x0, x1, ys, base=(150, 104, 72), books=True):
             d.rectangle((x, y + 150 - hh, x + w, y + 150), fill=rng.choice(pal)); x += w + 4
 
 
-def make_scene(scene):
+def make_scene(scene, variant=0):
     """Return (background RGB, foreground table strip RGBA) for a scene, 1920x1080."""
-    sc = SCENES[scene]; rng = random.Random(7)
+    sc = SCENES[scene]; rng = random.Random(7 + 31 * variant)
     bg = vgrad(W, H, sc["top"], sc["bot"]); d = ImageDraw.Draw(bg)
     if scene == "classroom":
         d.rounded_rectangle((470, 170, 1450, 650), radius=22, fill=(150, 112, 78)); d.rounded_rectangle((492, 192, 1428, 628), radius=12, fill=(52, 98, 80))
@@ -275,7 +275,7 @@ def make_scene(scene):
     if scene in ("cafe", "restaurant"):
         for x in (330, 1500):
             g.rounded_rectangle((x, 4, x + 84, 46), radius=14, fill=(255, 255, 255)); g.ellipse((x + 70, 12, x + 108, 38), outline=(255, 255, 255), width=8)
-    return bg.convert("RGB"), fg
+    return A.SC.variant_grade(bg.convert("RGB"), variant), fg
 
 
 def header(img, meta):
@@ -479,7 +479,7 @@ def parse_script(path):
             cur = None
             continue
         if sec is None:
-            m = re.match(r"^(title|episode|scene)\s*:\s*(.+)$", s, re.I)
+            m = re.match(r"^(title|episode|scene|weather|time)\s*:\s*(.+)$", s, re.I)
             if not m:
                 die(f"line {n}: put title/episode/scene first, then a [story] section: {s}")
             meta[m[1].lower()] = m[2].strip()
@@ -493,6 +493,14 @@ def parse_script(path):
                 if pending_dirs:
                     pending_dirs.append(("scene", sc))
                 pending_scene = sc
+                continue
+            m = re.match(r"^@(weather|time)\s+(.+)$", s, re.I)
+            if m:
+                try:
+                    val = A.parse_weather(m[2]) if m[1].lower() == "weather" else A.parse_tod(m[2])
+                except ValueError as e:
+                    die(f"line {n}: {e}")
+                pending_dirs.append((m[1].lower(), val, False))
                 continue
             m = re.match(r"^([>&])\s*(.+)$", s)
             if m:
@@ -690,6 +698,7 @@ def build(path, rate, dummy, tmp):
     segs, chapters = [], []
     stage = A.Stage()
     stage.prescan(story + (meta.get("ending") or []))
+    stage.setup(meta, story + (meta.get("ending") or []))
 
     def mark(kind, start, **kw):
         segs.append(dict(kind=kind, start=start, **kw))
@@ -697,7 +706,7 @@ def build(path, rate, dummy, tmp):
     # intro
     chapters.append((0.0, "Intro"))
     tr.gap(0.4)
-    mark("title", 0.0, scene=story[0]["scene"])
+    mark("title", 0.0, scene=story[0]["scene"], **stage.look(story[0]["scene"], settle=True))
     tr.say(f"Welcome to Tiny Japanese! Today's story: {meta['title']}. Watch the story first, "
            f"then we'll learn the words and grammar, and finish with a quiz.", "Narrator")
     tr.gap(0.8)
@@ -769,7 +778,7 @@ def build(path, rate, dummy, tmp):
 
     # outro
     chapters.append((tr.t, "Wrap-up"))
-    mark("outro", tr.t, scene=story[-1]["scene"])
+    mark("outro", tr.t, scene=story[-1]["scene"], **stage.look(story[-1]["scene"], bump=False, settle=True))
     tr.say("Great job! Watch the story again and repeat each line out loud. See you next time!", "Narrator")
     total = tr.t + 1.5
     audio = tr.audio(total)
@@ -793,10 +802,11 @@ class Renderer:
         self.pills = {(nm, a): pill(nm, CHARS[nm]["accent"] if a else (226, 214, 206), (255, 255, 255) if a else (130, 112, 108))
                       for nm in CHARS for a in (0, 1)}
 
-    def scene(self, name):
-        if name not in self.scenes:
-            bg, fg = make_scene(name); header(bg, self.meta); self.scenes[name] = (bg, fg)
-        return self.scenes[name]
+    def scene(self, name, variant=0):
+        key = (name, variant)
+        if key not in self.scenes:
+            bg, fg = make_scene(name, variant); header(bg, self.meta); self.scenes[key] = (bg, fg)
+        return self.scenes[key]
 
     def cached(self, key, fn):
         if key not in self.cards:
@@ -821,10 +831,11 @@ class Renderer:
     # ---- stage (story / title / outro)
     def stage(self, seg, i, tt, who, mouth):
         name = seg.get("scene")
-        bg, fg = self.scene(name)
-        fr = bg.copy()
+        var = seg.get("variant", 0)
+        bg, fg = self.scene(name, var)
+        fr, fg = A.atmos_frame(self, name, var, bg, fg, seg, tt)
         if seg["kind"] in ("story", "act") and seg["prev_scene"] != name and tt - seg["start"] < 0.5:
-            fr = Image.blend(self.scene(seg["prev_scene"])[0], bg, min(1, (tt - seg["start"]) / 0.5))
+            fr = Image.blend(self.scene(seg["prev_scene"])[0], fr, min(1, (tt - seg["start"]) / 0.5))
         A.draw_characters(self, fr, seg, i, tt, who, mouth)
         fr.paste(fg, (0, FLOOR_Y - 40), fg)
         if seg["kind"] == "story":
